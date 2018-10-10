@@ -25,17 +25,7 @@ void setup() {
 
   Serial.begin(9600);
 
-  // first-time initialization: if start of EEPROM is all 255's (factory default), zero it all out
-  if (255 == EEPROM.read(3) == EEPROM.read(2) == EEPROM.read(1) == EEPROM.read(0)) {
-    Serial.println("EEPROM appears uninitialized; overwriting all of it with zeros");
-    for (int i = 0; i < 1024; i++) EEPROM.write(i, 0);
-  }
-
-  // look up the unique serial value to use for this operation's event
-  startupVal = EEPROM.get(0, startupVal);
-  // update the record for the next time the Arduino starts
-  int nextStartupVal = startupVal + 1;
-  EEPROM.put(0, nextStartupVal);
+  initializeEEPROM();
 
   Serial.print("Initializing SD card...");
   // see if the card is present and can be initialized:
@@ -94,4 +84,18 @@ int writeData(long dataIn) {
     Serial.println("error opening " + filename);
     return false; // return false on error
   }
+}
+
+void   initializeEEPROM() {
+  // first-time initialization: if start of EEPROM is all 255's (factory default), zero it all out
+  if (255 == EEPROM.read(3) == EEPROM.read(2) == EEPROM.read(1) == EEPROM.read(0)) {
+    Serial.println("EEPROM appears uninitialized; overwriting all of it with zeros");
+    for (int i = 0; i < 1024; i++) EEPROM.write(i, 0);
+  }
+
+  // look up the unique serial value to use for this operation's event
+  startupVal = EEPROM.get(0, startupVal);
+  // update the record for the next time the Arduino starts
+  int nextStartupVal = startupVal + 1;
+  EEPROM.put(0, nextStartupVal);
 }
