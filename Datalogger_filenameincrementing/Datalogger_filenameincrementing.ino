@@ -1,12 +1,11 @@
 /*
   Incorporating code from Tom Igoe's "SD card datalogger"
 
-
-   SD card attached to Arduino pins as follows:
-   MOSI - pin 11
-   MISO - pin 12
-   SCK - pin 13
-   CS - pin 4
+  SD card attached to Arduino pins as follows:
+  MOSI - pin 11
+  MISO - pin 12
+  SCK - pin 13
+  CS - pin 4
 
 */
 
@@ -14,29 +13,20 @@
 #include <SD.h>
 #include <EEPROM.h>
 
-const int CHIPSELECT = 4;
-int startupVal;
-String filename;
+const int CHIPSELECT = 4; // same pin referred to as "CS" in the pin mapping above
+int startupVal; // variable will store the number of times this Arduino has powered on
+char filename[15]; // string to store the file name
 
-unsigned long timer;
+unsigned long timer; // variable used in timing function below to allow for intermittent events
 const unsigned long WAIT = 500; // milliseconds between data writing events
 
 void setup() {
 
   Serial.begin(9600);
 
-  // first-time initialization: if start of EEPROM is all 255's (factory default), zero it all out
-  if (255 == EEPROM.read(3) == EEPROM.read(2) == EEPROM.read(1) == EEPROM.read(0)) {
-    Serial.println("EEPROM appears uninitialized; overwriting all of it with zeros");
-    for (int i = 0; i < 1024; i++) EEPROM.write(i, 0);
-  }
+  initializeEEPROM(); // this function appears below the loop()
 
-  // look up the unique serial value to use for this operation's event
-  startupVal = EEPROM.get(0, startupVal);
-  // update the record for the next time the Arduino starts
-  int nextStartupVal = startupVal + 1;
-  EEPROM.put(0, nextStartupVal);
-
+Serial.print(filenameAndHeaderMessage());
   Serial.print("Initializing SD card...");
   // see if the card is present and can be initialized:
   if (!SD.begin(CHIPSELECT)) {
@@ -46,25 +36,19 @@ void setup() {
   }
   else  Serial.println("card initialized.");
 
-  filename = "data_" + String(startupVal) + ".txt";
-  Serial.println("this session file: " + filename);
-  File dataFile = SD.open(filename, FILE_WRITE);
-
   // if the file is available, write to it:
+  File dataFile = SD.open(filename, FILE_WRITE);
   if (dataFile) {
-    String hey = String("hey") + String("you");
-    String startupMessage = String("*****************************") + "file: " + filename;
-    dataFile.println("*****************************");
-    dataFile.println("file: " + filename);
-    dataFile.println("record format follows on next line:");
-    dataFile.println("millis(),data");
-    dataFile.println("*****************************");
+    dataFile.println(filenameAndHeaderMessage());
     dataFile.close();
+
     // print to the serial port too:
+    Serial.println(filenameAndHeaderMessage());
   }
   // if the file isn't open, pop up an error:
   else {
-    Serial.println("error writing startupVal to " + filename);
+    Serial.print("error writing startupVal to ");
+    Serial.println(filename);
   }
 }
 
@@ -91,7 +75,50 @@ int writeData(long dataIn) {
   }
   // if the file isn't open or openable, report an error:
   else {
-    Serial.println("error opening " + filename);
+    Serial.print("error opening ");
+    Serial.println(filename);
     return false; // return false on error
   }
+}
+
+void initializeEEPROM() {
+  // first-time initialization: if start of EEPROM is all 255's (factory default), zero it all out
+  if (255 == EEPROM.read(3) == EEPROM.read(2) == EEPROM.read(1) == EEPROM.read(0)) {
+    Serial.println("EEPROM appears uninitialized; overwriting all of it with zeros");
+    for (int i = 0; i < 1024; i++) EEPROM.write(i, 0);
+  }
+
+  // look up the number of times this Arduino has started up, using the EEPROM record at address 0
+  startupVal = EEPROM.get(0, startupVal);
+  Serial.print("number of times this Arduino switched on (i.e. startupVal) = ");
+  Serial.println(startupVal);
+  // increment the record for the next time the Arduino starts
+  int nextStartupVal = startupVal + 1;
+  EEPROM.put(0, nextStartupVal);
+}
+
+
+
+char filenameAndHeaderMessage() {
+  // assemble the filename into a char array called "filename"
+  // with format data_123.txt, where 123 is startupVal
+
+  strcat(filename, "data_");
+  // itoa() needed to turn an integer (startupVal) into an equivalant char array
+  char num[4];
+  strcat(filename, itoa(startupVal, num, 10));
+  strcat(filename, ".txt");
+
+  char sessionData[50] = "this session file: ";
+  strcat(sessionData, filename);
+  Serial.println(sessionData);
+
+  char fileHeadMsg[200] = "file name: ";
+  strcat(fileHeadMsg, filename); // add the file name
+  char afterFileNameHeadMsg[] =
+    "record format follows on next line: \n\
+    millis(),data\n\
+    *******************";
+  strcat(fileHeadMsg, afterFileNameHeadMsg); // add the text that follows the file name
+  return fileHeadMsg;
 }
