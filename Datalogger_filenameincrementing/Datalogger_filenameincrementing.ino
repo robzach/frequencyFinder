@@ -42,8 +42,6 @@ void setup() {
 
   // if the file is available, write to it:
   if (dataFile) {
-    String hey = String("hey") + String("you");
-    String startupMessage = String("*****************************") + "file: " + filename;
     dataFile.println("*****************************");
     dataFile.println("file: " + filename);
     dataFile.println("record format follows on next line:");
@@ -51,6 +49,11 @@ void setup() {
     dataFile.println("*****************************");
     dataFile.close();
     // print to the serial port too:
+    Serial.println("*****************************");
+    Serial.println("file: " + filename);
+    Serial.println("record format follows on next line:");
+    Serial.println("millis(),data");
+    Serial.println("*****************************");
   }
   // if the file isn't open, pop up an error:
   else {
@@ -72,6 +75,9 @@ int writeData(long dataIn) {
   File dataFile = SD.open(filename, FILE_WRITE);
   // if the file is available, write to it:
   if (dataFile) {
+    char singleRecord[30];
+    char millisChar[10];
+    millisChar = itoa(millis(), millisChar, 10);
     String singleRecord = String(millis()) + "," + String(dataIn);
     dataFile.println(singleRecord);
     dataFile.close();
