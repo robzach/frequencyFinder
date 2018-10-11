@@ -7,3 +7,7 @@ Periodically displays the number of milliseconds since the Arduino started, and 
 # frequency-finder
 
 Calculates the instantaneous frequency (in hertz) of the oscillation of the sensor, and reports this via the serial monitor. Performs smoothing to reduce jitter in the frequency data. Does not record data to an SD card.
+
+---
+
+This software is released to the public domain by the author.
