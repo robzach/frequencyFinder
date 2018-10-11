@@ -1,4 +1,6 @@
-Arduino sketches for CMU Prof. Susan Finger's students to use for data logging of high-speed oscillations of a sensor. (Specifically: they are pouring water through a pipe in series with a flow meter, which pulls a pin high and low at hundreds of hertz as the water flows.)
+Arduino sketches for [CMU](https://cmu.edu) Prof. [Susan Finger](https://www.cmu.edu/cee/people/faculty/finger.html)'s students to use for data logging of high-speed oscillations of a sensor. (Specifically: they are pouring water through a pipe in series with a flow meter, which pulls a pin high and low at hundreds of hertz as the water flows.)
+
+See the comment blocks at the top of both sketches for technical details, wiring, etc.
 
 # count-logger
 
