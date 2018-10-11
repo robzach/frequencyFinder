@@ -2,11 +2,14 @@
   Incorporating code from Tom Igoe's "SD card datalogger"
 
 
-   SD card attached to Arduino pins as follows:
-   MOSI - pin 11
-   MISO - pin 12
-   SCK - pin 13
-   CS - pin 4
+  SD card attached to Arduino pins as follows:
+  MOSI: pin 11
+  MISO: pin 12
+  SCK:  pin 13
+  CS:   pin 4
+
+  sensor: pin 2
+  (sketch assumes square waves alternating between 0V and 5V)
 
 */
 
@@ -15,11 +18,15 @@
 #include <EEPROM.h>
 
 const int CHIPSELECT = 4;
+const int LEDPIN = 8;
+
 int startupVal;
 String filename;
 
 unsigned long timer;
-const unsigned long WAIT = 500; // milliseconds between data writing events
+const unsigned long WAIT = 100; // milliseconds between data writing events
+
+File dataFile;
 
 void setup() {
 
@@ -38,7 +45,7 @@ void setup() {
 
   filename = "data_" + String(startupVal) + ".txt";
   Serial.println("this session file: " + filename);
-  File dataFile = SD.open(filename, FILE_WRITE);
+  dataFile = SD.open(filename, FILE_WRITE);
 
   // if the file is available, write to it:
   if (dataFile) {
@@ -47,40 +54,79 @@ void setup() {
     dataFile.println("record format follows on next line:");
     dataFile.println("millis(),data");
     dataFile.println("*****************************");
-    dataFile.close();
-    // print to the serial port too:
+
+    //    dataFile.close();
+    dataFile.flush();
+
+
+    // print the same message to the serial monitor too:
     Serial.println("*****************************");
     Serial.println("file: " + filename);
     Serial.println("record format follows on next line:");
     Serial.println("millis(),data");
     Serial.println("*****************************");
   }
-  // if the file isn't open, pop up an error:
+  // if the file isn't open, print an error:
   else {
     Serial.println("error writing startupVal to " + filename);
   }
+
+  // use an external LED as visual indicator of data being recorded to card
+  pinMode(LEDPIN, OUTPUT);
 }
 
 void loop() {
   int dataVal = analogRead(A0);
 
-  // twice per second
+  // every WAIT milliseconds
   if (millis() - timer >= WAIT) {
-    writeData(dataVal);
-    timer = millis();
+    timer = millis(); // reset timer
+    writeRecord(dataVal);
+    digitalWrite(LEDPIN, HIGH); // blink LED on
   }
+
+  // turn off LED after 10 milliseconds
+  if (millis() - timer > 10) digitalWrite(LEDPIN, LOW);
 }
 
-int writeData(long dataIn) {
-  File dataFile = SD.open(filename, FILE_WRITE);
+int writeRecord(long dataIn) {
+
+  static unsigned long counter;
+
+  unsigned long now = micros();
+  //  dataFile = SD.open(filename, FILE_WRITE);
+  //  dataFile = SD.open(filename, O_WRITE);
+
+  unsigned long openDiff = micros() - now;
+  Serial.print("openDiff w/O_WRITE = ");
+  Serial.println(openDiff);
+
   // if the file is available, write to it:
   if (dataFile) {
-    char singleRecord[30];
+    // build a char array called singleRecord, consisting of "millis(),dataIn" to write to file
+    char singleRecord[20] = ""; // reserve space for 19 characters total in the string
     char millisChar[10];
-    millisChar = itoa(millis(), millisChar, 10);
-    String singleRecord = String(millis()) + "," + String(dataIn);
+    strcat(singleRecord, ltoa(millis(), millisChar, 10));
+    strcat(singleRecord, ",");
+    char dataChar[10];
+    strcat(singleRecord, itoa(dataIn, dataChar, 10));
+
+    unsigned long writeNow = micros();
     dataFile.println(singleRecord);
-    dataFile.close();
+    unsigned long writeDiff = micros() - writeNow;
+    Serial.print("writeDiff = ");
+    Serial.println(writeDiff);
+
+
+    unsigned long laterNow = micros();
+
+    if (true || (counter % 10 == 0)) dataFile.flush(); // only every tenth
+    counter++;
+    //    dataFile.close();
+
+    unsigned long flushDiff = micros() - laterNow;
+    Serial.print("flushDiff = ");
+    Serial.println(flushDiff);
     // print to the serial port too:
     Serial.println(singleRecord);
     return true; // return true on success
