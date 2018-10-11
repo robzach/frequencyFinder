@@ -1,13 +1,11 @@
 /*
-  Count recorder: assumes a square-wave digital signal on an input pin
-  (pin 2 specifically) and reports the number of rising transitions
+  Count logger: assumes a square-wave digital signal on an input pin
+  (pin 2 specifically) and logs the number of rising transitions
   (i.e. low->high) on that pin in a specified period of time. These are
-  recorded to an attached SD card; each new Arduino power-on a new record
+  recorded to an attached SD card; each new Arduino power-on a new file
   is created in the format DATA_123.TXT, where 123 is the startup number.
-  A startup number higher than 999 may cause file writing to fail because of
-  naming limitations in the FAT32 file system.
 
-  Each line of the body of the record contains two comma-separated values, e.g.:
+  Each line of the body of the data file contains two comma-separated values, e.g.:
 
     1234,6789
 
@@ -18,19 +16,24 @@
   An "interrupt" pin (a pin with the ability to detect electrical changes at a
   high rate, even while other code is running) is assigned. Whenever pin 2's
   signal goes from 0V to 5V, the "Interrupt Service Routine" (ISR) is immediately
-  called, which calls a function called readPulse(); that function simply
+  called, which runs a function called readPulse(); that function simply
   increments a counter. This code running on an Arduino Uno appears to add or drop
   ~3 counts/second when clocking a 10kHz signal. It is more accurate at lower
   frequencies.
+
+  To reset the sequential startup counter to 1, turn the boolean value RESETSTARTUPCOUNTER
+  to true and upload the code; then turn the boolean back to false and upload again.
+
+  Wiring:
+
+  input signal: pin 2
+  LED:          pin 8 (optional; blinks when data is being written)
 
   SD card reader pin  | Arduino pin
       MOSI            | pin 11
       MISO            | pin 12
       SCK             | pin 13
       CS              | pin 4
-
-  input signal: pin 2
-  LED:          pin 8 (optional; blinks when data is being written)
 
   by Robert Zacharias, rzachari@andrew.cmu.edu
   Carnegie Mellon University, Pittsburgh, Pennsylvania
@@ -55,6 +58,9 @@ String filename;
 unsigned long timer;
 const unsigned long WRITEWAIT = 100; // milliseconds between data writing events
 
+// set this boolean to true to restart the sequential startup counter
+const bool RESETSTARTUPCOUNTER = false;
+
 // volatile data type needed for the count because its value will be affected by the ISR
 volatile unsigned long count;
 
@@ -67,7 +73,7 @@ void setup() {
 
   Serial.begin(9600);
 
-  initializeEEPROM(); // checks nonvolatile memory for serial startup number
+  initializeEEPROM(); // checks nonvolatile memory for sequential startup number
 
   Serial.print("Initializing SD card...");
   // see if the card is present and can be initialized:
@@ -80,7 +86,7 @@ void setup() {
 
   filename = "DATA_" + String(startupVal) + ".TXT";
   Serial.println("this session file: " + filename);
-  dataFile = SD.open(filename, FILE_WRITE);
+  dataFile = SD.open(filename, FILE_WRITE); // open the file once; it won't be closed
 
   // if the file is available, write to it:
   if (dataFile) {
@@ -133,9 +139,9 @@ int writeRecord(unsigned long dataIn) {
     strcat(singleRecord, ltoa(dataIn, dataChar, 10));
 
     dataFile.println(singleRecord); // write the record (a single line) to the SD card
-    
+
     static unsigned long counter;
-    if (counter % 10 == 0) dataFile.flush(); // only flush buffer every tenth time
+    if (counter % 10 == 0) dataFile.flush(); // only flush buffer (push data to card) every tenth time
     counter++;
 
     // print to the serial port too:
@@ -149,22 +155,25 @@ int writeRecord(unsigned long dataIn) {
   }
 }
 
-void   initializeEEPROM() {
-  // first-time initialization: if start of EEPROM is 255's (factory default), zero it out
-  if (255 == EEPROM.read(1) == EEPROM.read(0)) {
-    Serial.println("EEPROM appears uninitialized; resetting startupVal to 0");
+void initializeEEPROM() {
+  
+  // if start of EEPROM is 255's (factory default), or if RESETSTARTUPCOUNTER is
+  // set to true, then zero out the sequential counter
+  if ((255 == EEPROM.read(1) == EEPROM.read(0)) || RESETSTARTUPCOUNTER) {
+    if (RESETSTARTUPCOUNTER) Serial.println("resetting startup counter to 0");
+    else Serial.println("EEPROM appears uninitialized; resetting startup counter to 0");
     startupVal = 0;
     EEPROM.put(0, startupVal);
   }
 
-  // look up the unique serial value to use for this operation's event
+  // look up the unique sequential value to use for this operation
   startupVal = EEPROM.get(0, startupVal);
-  // update the record for the next time the Arduino starts
+  // update the value for the next time the Arduino starts
   int nextStartupVal = startupVal + 1;
   EEPROM.put(0, nextStartupVal);
 }
 
-// the Interrupt Service Routine (ISR) that is called whenever pin 2 transitions 0V -> 5V
+// the short-and-sweet Interrupt Service Routine (ISR) that is called whenever pin 2 transitions 0V -> 5V
 void readPulse() {
   count++;
 }
