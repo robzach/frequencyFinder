@@ -30,6 +30,8 @@ File dataFile;
 
 void setup() {
 
+  attachInterrupt(digitalPinToInterrupt(2), count, RISING);
+
   Serial.begin(9600);
 
   initializeEEPROM();
@@ -150,4 +152,7 @@ void   initializeEEPROM() {
   // update the record for the next time the Arduino starts
   int nextStartupVal = startupVal + 1;
   EEPROM.put(0, nextStartupVal);
+}
+
+void count(){
 }
