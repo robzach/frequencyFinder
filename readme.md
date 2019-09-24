@@ -10,6 +10,10 @@ Periodically displays the number of milliseconds since the Arduino started, and 
 
 Calculates the instantaneous frequency (in hertz) of the oscillation of the sensor, and reports this via the serial monitor. Performs smoothing to reduce jitter in the frequency data. Does not record data to an SD card.
 
+# distance-logger
+
+Reads an ultrasonic ranger and records values (in centimeters) on an SD card and also sends serial updates.
+
 ---
 
 This software is released to the public domain by the author.
